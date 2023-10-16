@@ -39,7 +39,7 @@ def main(pagina:Page):
                     pagina.update()
                 elif rs == "":
                     print("LOGIN NEGADO")
-                    pop_up_erroserv.title = ft.Text('DADOS NAO CONFEREM')
+                    pop_up_erroserv.title = ft.Text('DADOS NAO ENCONTRADOS NO SISTEMA')
                     pagina.dialog = pop_up_erroserv
                     pop_up_erroserv.open = True
                     tf_elogin.read_only = False
@@ -48,7 +48,7 @@ def main(pagina:Page):
                     pagina.update()
                 elif eval(r.text).get('erro') == "bd":
                     print("BD OFF")
-                    pop_up_erroserv.title = ft.Text('BD OFF')
+                    pop_up_erroserv.title = ft.Text('DADOS NAO ENCONTRADOS NO SISTEMA')
                     pagina.dialog = pop_up_erroserv
                     pop_up_erroserv.open = True
                     tf_elogin.read_only = False
@@ -56,7 +56,7 @@ def main(pagina:Page):
                     eb_confirmar_login.disabled = False
                     pagina.update()
                 else:
-                    pop_up_erroserv.title = ft.Text('?')
+                    pop_up_erroserv.title = ft.Text('ERRO')
                     pagina.dialog = pop_up_erroserv
                     pop_up_erroserv.open = True
                     tf_elogin.read_only = False
@@ -74,6 +74,10 @@ def main(pagina:Page):
     
     def tela_home(evento):
         pop_up_sucesso_cadastro.open = False
+        pop_up_2fc.open = False
+        pop_up_2fl.open = False
+        pop_up_erroserv.open = False
+        pop_up_ja_cadastrado.open = False
         pagina.remove_at(0)
         pagina.add(col_home)
         pagina.update()
@@ -82,7 +86,7 @@ def main(pagina:Page):
         pop_up_erroserv.open = False
         pagina.update()
 
-    def testar_cod(evento):
+    def testar_cod_login(evento):
         el_mail = eval( requests.get(f"{os.environ['link_api_login']}{tf_elogin.value},{tf_upswd.value}").text ).get('email')
         el_codigo = tf_cod2fl.value
         if el_codigo != "" and len(el_codigo) == 5:
@@ -96,8 +100,33 @@ def main(pagina:Page):
             except:
                 print("CAIU NO EXCEPT DO TESTAR COD")
 
+    def testar_cod_cadastro(evento):
+        el_mail = tf_email.value
+        el_codigo = tf_cod2fc.value
+        if el_codigo != "" and len(el_codigo) == 5:
+            try:
+                r_api_2f = requests.get(f"{os.environ['b4']}{el_mail},{el_codigo}").text ###################
+                if r_api_2f == 'True':
+                    requests.get(f"{os.environ['b6']}/{tf_email.value},{tf_pswd.value}") 
+                    tf_email.disabled = False
+                    tf_pswd.disabled = False
+                    tf_pswd2.disabled = False
+                    pop_up_2fc.open = False
+                    pagina.update()
+                    pagina.dialog = pop_up_sucesso_cadastro
+                    pop_up_sucesso_cadastro.open = True
+                    pagina.update()
+                else: 
+                    tf_email.disabled = False
+                    tf_pswd.disabled = False
+                    tf_pswd2.disabled = False
+                    pop_up_2fl.title = ft.Text('COD ERRADO')
+                    pagina.update()
+            except:
+                print("CAIU NO EXCEPT DO TESTAR COD")
+
     def confirmar_registro(e):
-        if tf_email.value != "" and tf_pswd.value != "" and tf_pswd2.value != "":
+        if tf_email.value != "" and tf_pswd.value != "" and tf_pswd2.value != "" and tf_pswd.value == tf_pswd2.value:
             tf_email.disabled = True
             tf_pswd.disabled = True
             tf_pswd2.disabled = True
@@ -105,12 +134,9 @@ def main(pagina:Page):
             rte = requests.get(f"{os.environ['b5']}{tf_email.value}").text 
             if rte == '{"False": "False"}':
                 print("Email nao cadastrado no sistema")
-                requests.get(f"{os.environ['b6']}/{tf_email.value},{tf_pswd.value}") 
-                tf_email.disabled = False
-                tf_pswd.disabled = False
-                tf_pswd2.disabled = False
-                pagina.dialog = pop_up_sucesso_cadastro
-                pop_up_sucesso_cadastro.open = True
+                r2fr2 = requests.get(f"{os.environ['b7']}{tf_email.value}")
+                pagina.dialog = pop_up_2fc
+                pop_up_2fc.open = True
                 pagina.update()
             elif rte == '{"True": "True"}':
                 print("Email no sistema")
@@ -132,6 +158,10 @@ def main(pagina:Page):
                 tf_pswd2.disabled = False
                 print("N SEI Q ERRO DEU MAS DEU ERRO")
                 pagina.update()
+        elif tf_pswd.value != tf_pswd2.value:
+            tf_pswd.border_color = ft.colors.RED
+            tf_pswd2.border_color = ft.colors.RED
+            pagina.update()
 
     def fechar_pop_up_emailexistente(e):
         pop_up_ja_cadastrado.open = False
@@ -154,7 +184,7 @@ def main(pagina:Page):
 
     #PAG REGISTRO
     tf_email = ft.TextField(label='Email', width=300)
-    tf_pswd = ft.TextField(label='Senha',password=True, can_reveal_password=True, width=300)
+    tf_pswd = ft.TextField(label='Senha',password=True, can_reveal_password=True, width=300)  
     tf_pswd2 = ft.TextField(label='Confirme a senha',password=True, can_reveal_password=True, width=300)
     eb_confirmar_registrar = ft.ElevatedButton(text='CONFIRMAR', on_click=confirmar_registro)
     linha_bts_registro = ft.Row([eb_home,eb_confirmar_registrar], alignment=ft.MainAxisAlignment.CENTER)
@@ -180,7 +210,7 @@ def main(pagina:Page):
         modal=False, 
         title=ft.Text(f'Codigo enviado ao email cadastrado!'), 
         content=tf_cod2fl, 
-        actions=[ ft.ElevatedButton("OK", on_click=testar_cod) ]
+        actions=[ ft.ElevatedButton("OK", on_click=testar_cod_login) ]
         )
     
     #POP UP DE EMAIL JA CADASTRADO
@@ -197,9 +227,19 @@ def main(pagina:Page):
         title=ft.Text('Cadastro realizado com sucesso, redirecionando para tela principal...'),
         actions=[ft.ElevatedButton('Ok', on_click=tela_home )]
     )
+
+    #POP UP 2FACTOR CADASTRO      #POP UP SEGUE PERSISTENTE AO FINALIZAR CADASTRO
+    tf_cod2fc = ft .TextField(label="COD", keyboard_type=ft.KeyboardType.NUMBER, max_length=5)
+    pop_up_2fc = ft.AlertDialog( 
+        open=False, 
+        modal=False,
+        title=ft.Text(f'Codigo enviado ao email informado.'), 
+        content=tf_cod2fc, 
+        actions=[ ft.ElevatedButton("OK", on_click=testar_cod_cadastro) ]
+        )
     
     pagina.add(col_home)
 
     
 
-ft.app(target=main) # view=ft.WEB_BROWSER
+ft.app(target=main) #  , view=ft.WEB_BROWSER
